@@ -102,8 +102,10 @@ void run(int argc, char** argv)
             unsigned int sorted_k = 1;
 
             do {
+                const unsigned int count = std::min(8u, 2 * sorted_k);
+
                 ocl_mergeSort.exec(
-                    gpu::WorkSize(GROUP_SIZE, n),
+                    gpu::WorkSize(GROUP_SIZE, (n + count - 1) / count),
                     *input,
                     buffer_output_gpu,
                     sorted_k, n);

@@ -13,7 +13,8 @@ __kernel void merge_sort(
     int n)
 {
     const uint width = 2u * sorted_k;
-    const uint i = get_global_id(0);
+    const uint count = min(8u, width);
+    const uint i = get_global_id(0) * count;
 
     if (i >= (uint)n) {
         return;
@@ -27,23 +28,31 @@ __kernel void merge_sort(
         start + width,
         (uint)n);
 
-    const uint own_start = i < middle ? start : middle;
-    const uint other_start = i < middle ? middle : start;
-    
-    const uint value = input_data[i];
+    const uint diagonal = i - start;
+    const uint left_size = middle - start;
+    const uint right_size = end - middle;
 
-    uint low = other_start;
-    uint high = i < middle ? end : middle;
+    uint low = diagonal > right_size ? diagonal - right_size : 0;
+    uint high = min(diagonal, left_size);
 
     while (low < high) {
         const uint mid = low + (high - low) / 2;
 
-        if (input_data[mid] < value || (i >= middle && input_data[mid] == value)) {
+        if (input_data[start + mid] <= input_data[middle + diagonal - mid - 1]) {
             low = mid + 1;
         } else {
             high = mid;
         }
     }
 
-    output_data[start + (i - own_start) + (low - other_start)] = value;
+    uint left = start + low;
+    uint right = middle + diagonal - low;
+
+    for (uint j = i; j < min(i + count, end); ++j) {
+        if (left < middle && (right == end || input_data[left] <= input_data[right])) {
+            output_data[j] = input_data[left++];
+        } else {
+            output_data[j] = input_data[right++];
+        }
+    }
 }
