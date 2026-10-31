@@ -98,23 +98,30 @@ void run(int argc, char** argv)
         // Запускаем кернел, с указанием размера рабочего пространства и передачей всех аргументов
         // Если хотите - можете удалить ветвление здесь и оставить только тот код который соответствует вашему выбору API
         if (context.type() == gpu::Context::TypeOpenCL) {
-            const gpu::gpu_mem_32u* input = &input_gpu;
-            unsigned int sorted_k = 1;
+            gpu::WorkSize workSize(
+                GROUP_SIZE,
+                ((n + MERGE_SORT_BLOCK_SIZE - 1) / MERGE_SORT_BLOCK_SIZE) * GROUP_SIZE);
 
-            do {
-                const unsigned int count = std::min(8u, 2 * sorted_k);
+            ocl_mergeSort.exec(
+                workSize,
+                input_gpu,
+                buffer1_gpu,
+                0,
+                n);
 
+            for (
+                unsigned int sorted_k = MERGE_SORT_BLOCK_SIZE;
+                sorted_k < static_cast<unsigned int>(n);
+                sorted_k *= 2) 
+            {
                 ocl_mergeSort.exec(
-                    gpu::WorkSize(GROUP_SIZE, (n + count - 1) / count),
-                    *input,
+                    workSize,
+                    buffer1_gpu,
                     buffer_output_gpu,
                     sorted_k, n);
 
                 buffer1_gpu.swap(buffer_output_gpu);
-                input = &buffer1_gpu;
-                sorted_k *= 2;
-
-            } while (sorted_k < static_cast<unsigned int>(n));
+            }
 
             buffer1_gpu.swap(buffer_output_gpu);
 
